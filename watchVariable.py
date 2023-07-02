@@ -7,10 +7,12 @@ class watch_variable_window:
         self._tui_window = tui_window
         self._tui_window.title = 'Variables'
         self._before_prompt_listener = lambda : self._before_prompt()
+        self.vpos = 0
+        self.hpos = 0
         gdb.events.before_prompt.connect(self._before_prompt_listener)
         self.whatisRE = re.compile(r"type = (.*)")
 
-    def printVar(self, varName):
+    def getPrintVar(self, varName):
         typeStr = ""
         addrOf = None
         try:
@@ -19,8 +21,7 @@ class watch_variable_window:
             result = self.whatisRE.match(typeStr)
             typeStr = result[1]
         except gdb.error as gdbError:
-            self._tui_window.write(f"{varName} = {gdbError}\n");
-            return
+            return f" {varName} = {gdbError}"
 
         code = varValue.type.code
         if(code == gdb.TYPE_CODE_PTR or code == gdb.TYPE_CODE_REF):
@@ -29,14 +30,45 @@ class watch_variable_window:
             typeStr = f"{typeStr} ({addrOf})"
         
         try:
-            self._tui_window.write(f"{typeStr}: {varName} = {varValue}\n");
+            return f" {typeStr}: {varName} = {varValue}"
         except gdb.MemoryError as memoryError:
-            self._tui_window.write(f"{typeStr}: {varName} = {memoryError}")
+            return f" {typeStr}: {varName} = {memoryError}"
+
+    def vscroll(self, offset):
+        self.vpos = max(0, self.vpos + offset)
+        self.render()
+
+    def hscroll(self, offset):
+        self.hpos = max(0, self.hpos + offset)
+        self.render()
 
     def render(self):
         self._tui_window.erase();
+
+        maxWidth = 0
         for varToWatch in variable_to_watch:
-            self.printVar(varToWatch)
+            allLines.append(self.getPrintVar(varToWatch))
+            maxWidth = max(maxWidth, len(allLines[-1]))
+
+        winWidth = self._tui_window.width
+        winHeight = self._tui_window.height
+        win = self._tui_window
+
+        allLines = []
+        hOffset = 0
+        if(maxWidth > winWidth):
+            hOffset = self.hpos
+        else:
+            self.hpos = 0
+
+        vOffset = 0
+        if(len(allLines) > winHeight):
+            vOffset = self.vpos
+        else:
+            self.vpos = 0
+
+        for line in allLines[vOffset:vOffset + winHeight]:
+            self._tui_window.write(f"{line[hOffset:hOffset + winWidth - 1]}\n")
 
     def _before_prompt(self):
         self.render()
@@ -51,6 +83,9 @@ class AddVarToWatch(gdb.Command):
         return gdb.COMPLETE_SYMBOL
 
     def invoke(self, args, from_tty):
+        if len(args) == 0:
+            print(f"One argument is needed")
+            return
         if len(args.split(" ")) != 1:
             print(f"Expected 1 parameter only {args}")
             return
@@ -66,6 +101,9 @@ class RemoveVarToWatch(gdb.Command):
         return gdb.COMPLETE_SYMBOL
 
     def invoke(self, args, from_tty):
+        if len(args) == 0:
+            print(f"One argument is needed")
+            return
         if len(args.split(" ")) != 1:
             print(f"Expected 1 parameter only {args}")
             return
