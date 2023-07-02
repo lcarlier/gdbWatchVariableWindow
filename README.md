@@ -20,3 +20,6 @@ When starting GDB, the layout of the debugger should ressemble to the screenshot
 To add a new variable to watch, use the command `add-variable-to-watch`. The new variable will appear in the `Variables` window.
 
 To remove a variable to watch, use the command `remove-variable-to-watch`.
+
+# Tips and tricks
+By default, gdb outputs all the numbers in decimal mode. Use the command `set output-radix 16` to print all the variables in the watcher in hexadecimal.
