@@ -45,6 +45,8 @@ class watch_variable_window:
     def render(self):
         self._tui_window.erase();
 
+        allLines = []
+
         maxWidth = 0
         for varToWatch in variable_to_watch:
             allLines.append(self.getPrintVar(varToWatch))
@@ -54,7 +56,6 @@ class watch_variable_window:
         winHeight = self._tui_window.height
         win = self._tui_window
 
-        allLines = []
         hOffset = 0
         if(maxWidth > winWidth):
             hOffset = self.hpos
