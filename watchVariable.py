@@ -1,15 +1,16 @@
 import re
 
+import sys, os
+sys.path.insert(0, os.path.dirname(os.path.realpath(__file__)))
+
+from watchCommon import tui_scrollable_window
+
 variable_to_watch=[]
 
-class watch_variable_window:
+class watch_variable_window(tui_scrollable_window):
+
     def __init__(self, tui_window):
-        self._tui_window = tui_window
-        self._tui_window.title = 'Variables'
-        self._before_prompt_listener = lambda : self._before_prompt()
-        self.vpos = 0
-        self.hpos = 0
-        gdb.events.before_prompt.connect(self._before_prompt_listener)
+        super(watch_variable_window, self).__init__(tui_window, "Variables")
         self.whatisRE = re.compile(r"type = (.*)")
 
     def getPrintVar(self, varName):
@@ -34,14 +35,6 @@ class watch_variable_window:
         except gdb.MemoryError as memoryError:
             return f" {typeStr}: {varName} = {memoryError}"
 
-    def vscroll(self, offset):
-        self.vpos = max(0, self.vpos + offset)
-        self.render()
-
-    def hscroll(self, offset):
-        self.hpos = max(0, self.hpos + offset)
-        self.render()
-
     def formatVar(self, varStr):
         finalStr = ""
         indentStr = "  "
@@ -61,40 +54,16 @@ class watch_variable_window:
                 finalStr += c
         return finalStr
 
-    def render(self):
-        self._tui_window.erase();
-
+    def rendercb(self, fromScroll):
         allLines = []
 
-        maxWidth = 0
         for varToWatch in variable_to_watch:
             formatedVar = self.formatVar(self.getPrintVar(varToWatch))
             lines = formatedVar.split("\n")
             for line in lines:
                 allLines.append(line)
-                maxWidth = max(maxWidth, len(allLines[-1]))
 
-        winWidth = self._tui_window.width
-        winHeight = self._tui_window.height
-        win = self._tui_window
-
-        hOffset = 0
-        if(maxWidth > winWidth):
-            hOffset = self.hpos
-        else:
-            self.hpos = 0
-
-        vOffset = 0
-        if(len(allLines) > winHeight):
-            vOffset = self.vpos
-        else:
-            self.vpos = 0
-
-        for line in allLines[vOffset:vOffset + winHeight]:
-            self._tui_window.write(f"{line[hOffset:hOffset + winWidth - 1]}\n")
-
-    def _before_prompt(self):
-        self.render()
+        self.printview(allLines)
 
 gdb.register_window_type('watchVariable', watch_variable_window)
 
