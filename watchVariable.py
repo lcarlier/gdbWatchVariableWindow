@@ -42,6 +42,25 @@ class watch_variable_window:
         self.hpos = max(0, self.hpos + offset)
         self.render()
 
+    def formatVar(self, varStr):
+        finalStr = ""
+        indentStr = "  "
+        curIdent = 0
+        for c in varStr:
+            if c == "{":
+                curIdent += 1
+                finalStr += f"{{\n {curIdent * indentStr}"
+            elif c == "}":
+                curIdent -= 1
+                finalStr += f"\n {curIdent * indentStr}}}"
+            elif c == ",":
+                # Don't add the ' ' character after the carriage return because the
+                # representation from GDB already has it
+                finalStr += f",\n{curIdent * indentStr}"
+            else:
+                finalStr += c
+        return finalStr
+
     def render(self):
         self._tui_window.erase();
 
@@ -49,8 +68,11 @@ class watch_variable_window:
 
         maxWidth = 0
         for varToWatch in variable_to_watch:
-            allLines.append(self.getPrintVar(varToWatch))
-            maxWidth = max(maxWidth, len(allLines[-1]))
+            formatedVar = self.formatVar(self.getPrintVar(varToWatch))
+            lines = formatedVar.split("\n")
+            for line in lines:
+                allLines.append(line)
+                maxWidth = max(maxWidth, len(allLines[-1]))
 
         winWidth = self._tui_window.width
         winHeight = self._tui_window.height
